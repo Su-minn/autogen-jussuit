@@ -226,7 +226,7 @@ def _cmd(lang):
     raise NotImplementedError(f"{lang} not recognized in code execution")
 
 def _execute_run_server(lang, code) -> bool:
-    return lang in ["sh", "bash", "shell", "powershell", "ps1"] and "uvicorn" in code
+    return lang in ["sh", "bash", "shell", "powershell", "ps1"] and not "pip" in code and "uvicorn" in code
 
 def execute_code(
     code: Optional[str] = None,
