@@ -1109,7 +1109,7 @@ class ConversableAgent(Agent):
                 lang = infer_lang(code)
             print(
                 colored(
-                    f"\n>>>>>>>> EXECUTING CODE BLOCK {i} (inferred language is {lang})...",
+                    f"\n>>>>>>>> EXECUTING CODE BLOCK {i} (inferred language is {lang})...\n⬇️\tBELOW CODE\t⬇️\n{code}", # Add code block script contents for CODE BLOCK debugging
                     "red",
                 ),
                 flush=True,
