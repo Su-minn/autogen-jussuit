@@ -9,6 +9,8 @@ from concurrent.futures import ThreadPoolExecutor, TimeoutError
 from hashlib import md5
 from typing import Callable, Dict, List, Optional, Tuple, Union
 
+from numpy import std
+
 from autogen import oai
 
 try:
@@ -223,6 +225,8 @@ def _cmd(lang):
         return "powershell"
     raise NotImplementedError(f"{lang} not recognized in code execution")
 
+def _execute_run_server(lang, code) -> bool:
+    return lang in ["sh", "bash", "shell", "powershell", "ps1"] and "uvicorn" in code
 
 def execute_code(
     code: Optional[str] = None,
@@ -287,6 +291,11 @@ def execute_code(
 
     timeout = timeout or DEFAULT_TIMEOUT
     original_filename = filename
+    
+    # if cmd is run server, guide the user to run it manually!
+    if _execute_run_server(lang, code):
+        return 0, f"Manually check your server with this code and let me know if it works as required.", None
+    
     if WIN32 and lang in ["sh", "shell"] and (not use_docker):
         lang = "ps1"
     if filename is None:
@@ -306,6 +315,7 @@ def execute_code(
     if lang in ["html", "HTML", "css", "CSS", "js", "JS"]:
         return 0, f"Successfully saved the {lang} file.", None
     
+
     # check if already running in a docker container
     in_docker_container = os.path.exists("/.dockerenv")
     if not use_docker or in_docker_container:
