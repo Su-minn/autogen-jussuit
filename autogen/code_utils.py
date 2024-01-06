@@ -301,6 +301,11 @@ def execute_code(
     if code is not None:
         with open(filepath, "w", encoding="utf-8") as fout:
             fout.write(code)
+    
+    # check if the code needs to be executed. If not, return.
+    if lang in ["html", "HTML", "css", "CSS", "js", "JS"]:
+        return 0, f"Successfully saved the {lang} file.", None
+    
     # check if already running in a docker container
     in_docker_container = os.path.exists("/.dockerenv")
     if not use_docker or in_docker_container:

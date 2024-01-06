@@ -1127,6 +1127,13 @@ class ConversableAgent(Agent):
                     filename=filename,
                     **self._code_execution_config,
                 )
+            elif lang in ["html", "HTML"]:
+                if code.startswith("<!-- filename: "):
+                    ext = ".html"
+                    filename = code[14 : code.find(ext) + len(ext)].strip()
+                else:
+                    filename = None
+                exitcode, logs, image = self.run_code(code, lang="html", filename=filename, **self._code_execution_config)
             else:
                 # In case the language is not supported, we return an error message.
                 exitcode, logs, image = (
