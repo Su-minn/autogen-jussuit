@@ -1,9 +1,10 @@
-import os
 import json
+import logging
+import os
 import tempfile
 from pathlib import Path
-from typing import List, Optional, Dict, Set, Union
-import logging
+from typing import Dict, List, Optional, Set, Union
+
 from dotenv import find_dotenv, load_dotenv
 
 try:
@@ -144,8 +145,8 @@ def config_list_openai_aoai(
         exclude (str, optional): The API type to exclude from the configuration list. Can be 'openai' or 'aoai'. Defaults to None.
 
     Returns:
-        List[Dict]: A list of configuration dictionaries. Each dictionary contains keys for 'api_key', 'base_url', 'api_type',
-        and 'api_version'.
+        List[Dict]: A list of configuration dictionaries. Each dictionary contains keys for 'api_key',
+            and optionally 'base_url', 'api_type', and 'api_version'.
 
     Raises:
         FileNotFoundError: If the specified key files are not found and the corresponding API key is not set in the environment variables.
@@ -240,7 +241,6 @@ def config_list_openai_aoai(
             # Assuming OpenAI API_KEY in os.environ["OPENAI_API_KEY"]
             api_keys=os.environ.get("OPENAI_API_KEY", "").split("\n"),
             base_urls=base_urls,
-            # "api_type": "open_ai",
         )
         if exclude != "openai"
         else []
@@ -260,7 +260,7 @@ def config_list_from_models(
     """
     Get a list of configs for API calls with models specified in the model list.
 
-    This function extends `config_list_openai_aoai` by allowing to clone its' out for each fof the models provided.
+    This function extends `config_list_openai_aoai` by allowing to clone its' out for each of the models provided.
     Each configuration will have a 'model' key with the model name as its value. This is particularly useful when
     all endpoints have same set of models.
 
@@ -365,23 +365,23 @@ def filter_config(config_list, filter_dict):
     ```
         # Example configuration list with various models and API types
         configs = [
-            {'model': 'gpt-3.5-turbo', 'api_type': 'openai'},
-            {'model': 'gpt-4', 'api_type': 'openai'},
+            {'model': 'gpt-3.5-turbo'},
+            {'model': 'gpt-4'},
             {'model': 'gpt-3.5-turbo', 'api_type': 'azure'},
         ]
 
         # Define filter criteria to select configurations for the 'gpt-3.5-turbo' model
-        # that are also using the 'openai' API type
+        # that are also using the 'azure' API type
         filter_criteria = {
             'model': ['gpt-3.5-turbo'],  # Only accept configurations for 'gpt-3.5-turbo'
-            'api_type': ['openai']       # Only accept configurations for 'openai' API type
+            'api_type': ['azure']       # Only accept configurations for 'azure' API type
         }
 
         # Apply the filter to the configuration list
         filtered_configs = filter_config(configs, filter_criteria)
 
         # The resulting `filtered_configs` will be:
-        # [{'model': 'gpt-3.5-turbo', 'api_type': 'openai'}]
+        # [{'model': 'gpt-3.5-turbo', 'api_type': 'azure', ...}]
     ```
 
     Note:
@@ -416,7 +416,8 @@ def config_list_from_json(
     of acceptable values for that field, the configuration will still be considered a match.
 
     Args:
-        env_or_file (str): The name of the environment variable or the filename containing the JSON data.
+        env_or_file (str): The name of the environment variable, the filename, or the environment variable of the filename
+            that containing the JSON data.
         file_location (str, optional): The directory path where the file is located, if `env_or_file` is a filename.
         filter_dict (dict, optional): A dictionary specifying the filtering criteria for the configurations, with
             keys representing field names and values being lists or sets of acceptable values for those fields.
@@ -424,28 +425,38 @@ def config_list_from_json(
     Example:
     ```
     # Suppose we have an environment variable 'CONFIG_JSON' with the following content:
-    # '[{"model": "gpt-3.5-turbo", "api_type": "openai"}, {"model": "gpt-4", "api_type": "openai"}]'
+    # '[{"model": "gpt-3.5-turbo", "api_type": "azure"}, {"model": "gpt-4"}]'
 
     # We can retrieve a filtered list of configurations like this:
-    filter_criteria = {"api_type": ["openai"], "model": ["gpt-3.5-turbo"]}
+    filter_criteria = {"model": ["gpt-3.5-turbo"]}
     configs = config_list_from_json('CONFIG_JSON', filter_dict=filter_criteria)
     # The 'configs' variable will now contain only the configurations that match the filter criteria.
     ```
 
     Returns:
         List[Dict]: A list of configuration dictionaries that match the filtering criteria specified in `filter_dict`.
+
+    Raises:
+        FileNotFoundError: if env_or_file is neither found as an environment variable nor a file
     """
-    json_str = os.environ.get(env_or_file)
-    if json_str:
+    env_str = os.environ.get(env_or_file)
+
+    if env_str:
+        # The environment variable exists. We should use information from it.
+        if os.path.exists(env_str):
+            # It is a file location, and we need to load the json from the file.
+            with open(env_str, "r") as file:
+                json_str = file.read()
+        else:
+            # Else, it should be a JSON string by itself.
+            json_str = env_str
         config_list = json.loads(json_str)
     else:
+        # The environment variable does not exist.
+        # So, `env_or_file` is a filename. We should use the file location.
         config_list_path = os.path.join(file_location, env_or_file)
-        try:
-            with open(config_list_path) as json_file:
-                config_list = json.load(json_file)
-        except FileNotFoundError:
-            logging.warning(f"The specified config_list file '{config_list_path}' does not exist.")
-            return []
+        with open(config_list_path) as json_file:
+            config_list = json.load(json_file)
     return filter_config(config_list, filter_dict)
 
 
@@ -460,14 +471,12 @@ def get_config(
     config = get_config(
         api_key="sk-abcdef1234567890",
         base_url="https://api.openai.com",
-        api_type="openai",
         api_version="v1"
     )
     # The 'config' variable will now contain:
     # {
     #     "api_key": "sk-abcdef1234567890",
     #     "base_url": "https://api.openai.com",
-    #     "api_type": "openai",
     #     "api_version": "v1"
     # }
     ```
